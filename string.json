@@ -3,7 +3,7 @@
   "api_site": {
     "gzys":{
       "name": "瓜子影视",
-      "api": "https://gztv.nalinali.qzz.io/api/appcms"
+      "api": "https://gztv.nalinali.qzz.io/"
     },
     "dyttzy": {
       "name": "电影天堂资源",
