@@ -103,6 +103,8 @@ async function apiGet(ctx, params, timeoutMs) {
   if (typeof fetch === 'function') clients.push('fetch');
 
   ctx.log.info('[gztv] HTTP clients available:', clients.join(', '));
+  ctx.log.info('[gztv] ctx.config:', JSON.stringify(ctx.config));
+  ctx.log.info('[gztv] ctx.runtime:', JSON.stringify(ctx.runtime));
 
   for (let ci = 0; ci < clients.length; ci++) {
     const clientName = clients[ci];
