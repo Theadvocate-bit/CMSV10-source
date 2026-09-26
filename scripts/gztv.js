@@ -95,10 +95,10 @@ async function apiGet(ctx, params, timeoutMs) {
     });
   }
 
-  try {
-    let resp;
-    let clientName = 'unknown';
+  let resp;
+  let clientName = 'unknown';
 
+  try {
     // 1) ctx 级 fetch（MoonTV 通常提供）
     if (ctx && typeof ctx.fetch === 'function') {
       clientName = 'ctx.fetch';
@@ -148,7 +148,7 @@ async function apiGet(ctx, params, timeoutMs) {
     ctx.log.warn('[gztv] Unexpected response via', clientName, ':', typeof resp, String(resp).slice(0, 200));
     return null;
   } catch (e) {
-    ctx.log.warn('[gztv] HTTP error via', clientName || 'unknown', ':', e.message || String(e));
+    ctx.log.warn('[gztv] HTTP error via', clientName, ':', e.message || String(e));
     ctx.log.warn('[gztv] URL was:', urlStr);
     return null;
   }
