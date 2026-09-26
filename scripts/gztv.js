@@ -110,11 +110,11 @@ async function apiGet(ctx, params, timeoutMs) {
       let resp;
 
       if (clientName === 'ctx.request.getJson') {
-        ctx.log.info('[gztv] Trying ctx.request.getJson:', urlStr);
-        resp = await withTimeout(ctx.request.getJson(urlStr, { headers, timeout }), timeout);
+        ctx.log.info('[gztv] Trying ctx.request.getJson (simple):', urlStr);
+        resp = await withTimeout(ctx.request.getJson(urlStr), timeout);
       } else if (clientName === 'ctx.request.get') {
-        ctx.log.info('[gztv] Trying ctx.request.get:', urlStr);
-        resp = await withTimeout(ctx.request.get(urlStr, { headers, timeout }), timeout);
+        ctx.log.info('[gztv] Trying ctx.request.get (simple):', urlStr);
+        resp = await withTimeout(ctx.request.get(urlStr), timeout);
       } else if (clientName === 'ctx.fetch') {
         ctx.log.info('[gztv] Trying ctx.fetch:', urlStr);
         resp = await withTimeout(ctx.fetch(urlStr, { headers }), timeout);
