@@ -1,80 +1,95 @@
 {
-  "cache_time": 7200,
+  "cache_time": 7200, 
   "api_site": {
-    "gzys":{
-      "name": "瓜子影视",
-      "api": "https://gztv.nalinali.qzz.io/"
-    },
+    "gzys": {
+      "name": "瓜子影视", 
+      "api": "https://gztv.nalinali.qzz.io/api/appcms", 
+      "detail": "https://gztv5.com"
+    }, 
     "dyttzy": {
-      "name": "电影天堂资源",
-      "api": "http://caiji.dyttzyapi.com/api.php/provide/vod",
+      "name": "电影天堂资源", 
+      "api": "http://caiji.dyttzyapi.com/api.php/provide/vod", 
       "detail": "http://caiji.dyttzyapi.com"
-    },
+    }, 
     "ruyi": {
-      "name": "如意资源",
-      "api": "http://cj.rycjapi.com/api.php/provide/vod"
-    },
+      "name": "如意资源", 
+      "api": "http://cj.rycjapi.com/api.php/provide/vod", 
+      "detail": "http://cj.rycjapi.com"
+    }, 
     "bfzy": {
-      "name": "暴风资源",
-      "api": "https://bfzyapi.com/api.php/provide/vod"
-    },
+      "name": "暴风资源", 
+      "api": "https://bfzyapi.com/api.php/provide/vod", 
+      "detail": "https://bfzyapi.com"
+    }, 
     "ffzy": {
-      "name": "非凡影视",
-      "api": "http://ffzy5.tv/api.php/provide/vod",
+      "name": "非凡影视", 
+      "api": "http://ffzy5.tv/api.php/provide/vod", 
       "detail": "http://ffzy5.tv"
-    },
+    }, 
     "zy360": {
-      "name": "360资源",
-      "api": "https://360zy.com/api.php/provide/vod"
-    },
+      "name": "360资源", 
+      "api": "https://360zy.com/api.php/provide/vod", 
+      "detail": "https://360zy.com"
+    }, 
     "jisu": {
-      "name": "极速资源",
-      "api": "https://jszyapi.com/api.php/provide/vod",
+      "name": "极速资源", 
+      "api": "https://jszyapi.com/api.php/provide/vod", 
       "detail": "https://jszyapi.com"
-    },
+    }, 
     "mdzy": {
-      "name": "魔都资源",
-      "api": "https://www.mdzyapi.com/api.php/provide/vod"
-    },
+      "name": "魔都资源", 
+      "api": "https://www.mdzyapi.com/api.php/provide/vod", 
+      "detail": "https://www.mdzyapi.com"
+    }, 
     "zuid": {
-      "name": "最大资源",
-      "api": "https://api.zuidapi.com/api.php/provide/vod"
-    },
+      "name": "最大资源", 
+      "api": "https://api.zuidapi.com/api.php/provide/vod", 
+      "detail": "https://api.zuidapi.com"
+    }, 
     "ikun": {
-      "name": "iKun资源",
-      "api": "https://ikunzyapi.com/api.php/provide/vod"
-    },
+      "name": "iKun资源", 
+      "api": "https://ikunzyapi.com/api.php/provide/vod", 
+      "detail": "https://ikunzyapi.com"
+    }, 
     "lzi": {
-      "name": "量子资源站",
-      "api": "https://cj.lziapi.com/api.php/provide/vod"
-    },
+      "name": "量子资源站", 
+      "api": "https://cj.lziapi.com/api.php/provide/vod", 
+      "detail": "https://cj.lziapi.com"
+    }, 
     "豪华": {
-      "name": "豪华",
-      "api": "https://hhzyapi.com/api.php/provide/vod"
-    },
+      "name": "豪华", 
+      "api": "https://hhzyapi.com/api.php/provide/vod", 
+      "detail": "https://hhzyapi.com"
+    }, 
     "量子资源": {
-      "name": "量子资源",
-      "api": "https://cj.lzcaiji.com/api.php/provide/vod"
-    },
+      "name": "量子资源", 
+      "api": "https://cj.lzcaiji.com/api.php/provide/vod", 
+      "detail": "https://cj.lzcaiji.com"
+    }, 
     "红牛": {
-      "name": "红牛",
-      "api": "https://www.hongniuzy2.com/api.php/provide/vod"
-    },
+      "name": "红牛", 
+      "api": "https://www.hongniuzy2.com/api.php/provide/vod", 
+      "detail": "https://www.hongniuzy2.com"
+    }, 
     "非凡": {
-      "name": "非凡",
-      "api": "https://api.ffzyapi.com/api.php/provide/vod"
-    },
+      "name": "非凡", 
+      "api": "https://api.ffzyapi.com/api.php/provide/vod", 
+      "detail": "https://api.ffzyapi.com"
+    }, 
     "IK": {
-      "name": "IK",
-      "api": "https://ikunzyapi.com/api.php/provide/vod/from/ikm3u8/"
-    },
+      "name": "IK", 
+      "api": "https://ikunzyapi.com/api.php/provide/vod/from/ikm3u8/", 
+      "detail": "https://ikunzyapi.com"
+    }, 
     "hhzy": {
-      "name": "火狐资源",
-      "api": "https://hhzyapi.com/api.php/provide/vod"
-    },
+      "name": "火狐资源", 
+      "api": "https://hhzyapi.com/api.php/provide/vod", 
+      "detail": "https://hhzyapi.com"
+    }, 
     "zuidazy": {
-      "name": "最大资源(备用)",
-      "api": "http://zuidazy.me/api.php/provide/vod"
+      "name": "最大资源(备用)", 
+      "api": "http://zuidazy.me/api.php/provide/vod", 
+      "detail": "http://zuidazy.me"
     }
   }
 }
