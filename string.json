@@ -28,7 +28,7 @@
     }, 
     "zy360": {
       "name": "360资源", 
-      "api": "https://360zy.com/api.php/provide/vod", 
+      "api": "https://360zyzz.com/api.php/provide/vod", 
       "detail": "https://360zy.com"
     }, 
     "jisu": {
@@ -44,7 +44,7 @@
     "zuid": {
       "name": "最大资源", 
       "api": "https://api.zuidapi.com/api.php/provide/vod", 
-      "detail": "https://api.zuidapi.com"
+      "detail": "https://zuidazy.me"
     }, 
     "ikun": {
       "name": "iKun资源", 
@@ -61,35 +61,20 @@
       "api": "https://hhzyapi.com/api.php/provide/vod", 
       "detail": "https://hhzyapi.com"
     }, 
-    "量子资源": {
-      "name": "量子资源", 
-      "api": "https://cj.lzcaiji.com/api.php/provide/vod", 
-      "detail": "https://cj.lzcaiji.com"
-    }, 
     "红牛": {
       "name": "红牛", 
       "api": "https://www.hongniuzy2.com/api.php/provide/vod", 
       "detail": "https://www.hongniuzy2.com"
     }, 
-    "非凡": {
-      "name": "非凡", 
-      "api": "https://api.ffzyapi.com/api.php/provide/vod", 
-      "detail": "https://api.ffzyapi.com"
+    "天涯": {
+      "name": "天涯影视", 
+      "api": "https://tyyszyapi.com/api.php/provide/vod", 
+      "detail": "https://tyyszy.com/"
     }, 
     "IK": {
       "name": "IK", 
       "api": "https://ikunzyapi.com/api.php/provide/vod/from/ikm3u8/", 
       "detail": "https://ikunzyapi.com"
-    }, 
-    "hhzy": {
-      "name": "火狐资源", 
-      "api": "https://hhzyapi.com/api.php/provide/vod", 
-      "detail": "https://hhzyapi.com"
-    }, 
-    "zuidazy": {
-      "name": "最大资源(备用)", 
-      "api": "http://zuidazy.me/api.php/provide/vod", 
-      "detail": "http://zuidazy.me"
     }
   }
 }
