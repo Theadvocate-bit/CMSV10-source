@@ -9,15 +9,11 @@
 const API_BASE = 'https://gztv.nalinali.qzz.io/api/appcms';
 const SOURCE_ID = 'gztv5';
 const SOURCE_NAME = '瓜子影视';
+const TIMEOUT_MS = 15000;
 
 // ── 辅助函数 ──────────────────────────────────────────────────────
 
 function extractEpisodes(vodPlayUrl) {
-  /**
-   * 解析 AppCMS V10 的 vod_play_url 字段。
-   * 格式: "集数名$url1#集数名$url2#..."，'$' 分隔名称/URL，'#' 分隔不同集。
-   * 返回列表: { episodes: string[], titles: string[] }
-   */
   if (!vodPlayUrl || typeof vodPlayUrl !== 'string') {
     return { episodes: [], titles: [] };
   }
@@ -36,10 +32,7 @@ function extractEpisodes(vodPlayUrl) {
   return { episodes, titles };
 }
 
-function mapListItem(item, sourceId) {
-  /**
-   * 将 AppCMS V10 list 项映射为 MoonTV SearchResult 格式。
-   */
+function mapListItem(item, sid) {
   const { episodes, titles } = extractEpisodes(item.vod_play_url);
   return {
     id: String(item.vod_id || ''),
@@ -47,7 +40,7 @@ function mapListItem(item, sourceId) {
     poster: item.vod_pic || '',
     episodes,
     episodes_titles: titles,
-    source: sourceId,
+    source: sid,
     source_name: SOURCE_NAME,
     class: item.vod_class || '',
     year: item.vod_year || item.vod_time || '',
@@ -62,31 +55,73 @@ function mapListItem(item, sourceId) {
   };
 }
 
-async function apiGet(params, timeoutMs) {
-  /**
-   * 通用 GET 请求，带超时和错误处理。
-   */
+// ── HTTP 请求 ─────────────────────────────────────────────────────
+
+async function apiGet(ctx, params, timeoutMs) {
   const url = new URL(API_BASE);
   for (const [k, v] of Object.entries(params)) {
     url.searchParams.set(k, v);
   }
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs || 10000);
+  const urlStr = url.toString();
+  const timeout = timeoutMs || TIMEOUT_MS;
+
+  const headers = {
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+      '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+    Accept: 'application/json',
+  };
+
   try {
-    const resp = await fetch(url.toString(), {
-      signal: controller.signal,
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        Accept: 'application/json',
-      },
-    });
-    if (!resp.ok) return null;
-    return await resp.json();
-  } catch (e) {
+    let resp;
+
+    // 1) 优先用 ctx.http（MoonTV 内置 HTTP 客户端）
+    if (ctx && typeof ctx.http === 'function') {
+      resp = await ctx.http(urlStr, { headers, timeout });
+    }
+    // 2) 其次用 ctx.fetch
+    else if (ctx && typeof ctx.fetch === 'function') {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
+      try {
+        resp = await ctx.fetch(urlStr, { headers, signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    // 3) 兜底用全局 fetch
+    else if (typeof fetch === 'function') {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
+      try {
+        resp = await fetch(urlStr, { headers, signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    } else {
+      ctx.log.warn('[gztv] No HTTP client available (ctx.http / ctx.fetch / fetch)');
+      return null;
+    }
+
+    // 处理 Response 对象（fetch / ctx.fetch）
+    if (resp && typeof resp.json === 'function') {
+      if (!resp.ok) {
+        ctx.log.warn('[gztv] HTTP', resp.status, urlStr);
+        return null;
+      }
+      return await resp.json();
+    }
+
+    // 处理已解析的对象（ctx.http 可能直接返回 JSON）
+    if (resp && typeof resp === 'object' && 'code' in resp) {
+      return resp;
+    }
+
+    ctx.log.warn('[gztv] Unexpected response type:', typeof resp, urlStr);
     return null;
-  } finally {
-    clearTimeout(timer);
+  } catch (e) {
+    ctx.log.warn('[gztv] HTTP error:', e.message || String(e), urlStr);
+    return null;
   }
 }
 
@@ -99,26 +134,18 @@ return {
     description: 'AppCMS V10 — gztv5.com 数据源，m3u8 直链',
   },
 
-  /**
-   * 返回可用源列表。
-   */
   async getSources(ctx) {
     return [
       { id: SOURCE_ID, name: SOURCE_NAME },
     ];
   },
 
-  /**
-   * 搜索影视资源。
-   * @param {object} ctx  - MoonTV 脚本上下文
-   * @param {object} opts - { keyword, page, sourceId }
-   */
   async search(ctx, { keyword, page, sourceId }) {
     const sid = sourceId || SOURCE_ID;
     const pg = page || 1;
     ctx.log.info('[gztv] search', JSON.stringify({ keyword, page: pg, sourceId: sid }));
 
-    const data = await apiGet({
+    const data = await apiGet(ctx, {
       ac: 'videolist',
       wd: keyword,
       pg: String(pg),
@@ -126,6 +153,13 @@ return {
     });
 
     if (!data || data.code !== 1 || !Array.isArray(data.list)) {
+      if (data) {
+        ctx.log.warn('[gztv] API returned', JSON.stringify({
+          code: data.code,
+          msg: data.msg,
+          hasList: !!data.list,
+        }));
+      }
       return { sourceId: sid, list: [], page: pg, pageCount: 1, total: 0 };
     }
 
@@ -138,12 +172,6 @@ return {
     };
   },
 
-  /**
-   * 获取推荐/首页影视列表。
-   * 支持按分类筛选，默认为全部分类。
-   * @param {object} ctx  - MoonTV 脚本上下文
-   * @param {object} opts - { page, typeId, sourceId }
-   */
   async recommend(ctx, { page, typeId, sourceId }) {
     const sid = sourceId || SOURCE_ID;
     const pg = page || 1;
@@ -156,7 +184,7 @@ return {
     };
     if (typeId) params.type_id = String(typeId);
 
-    const data = await apiGet(params);
+    const data = await apiGet(ctx, params);
 
     if (!data || data.code !== 1 || !Array.isArray(data.list)) {
       return { list: [], page: pg, pageCount: 1, total: 0 };
@@ -171,16 +199,11 @@ return {
     };
   },
 
-  /**
-   * 获取影视详情及播放列表。
-   * @param {object} ctx  - MoonTV 脚本上下文
-   * @param {object} opts - { id, sourceId }
-   */
   async detail(ctx, { id, sourceId }) {
     const sid = sourceId || SOURCE_ID;
     ctx.log.info('[gztv] detail', JSON.stringify({ id, sourceId: sid }));
 
-    const data = await apiGet({
+    const data = await apiGet(ctx, {
       ac: 'videolist',
       ids: String(id),
     });
@@ -226,12 +249,6 @@ return {
     };
   },
 
-  /**
-   * 解析播放地址。
-   * gztv5 返回 m3u8 直链，直接返回即可，无需额外转换。
-   * @param {object} ctx  - MoonTV 脚本上下文
-   * @param {object} opts - { playUrl, sourceId, episodeIndex }
-   */
   async resolvePlayUrl(ctx, { playUrl, sourceId, episodeIndex }) {
     ctx.log.info('[gztv] resolvePlayUrl', JSON.stringify({
       sourceId,
@@ -248,7 +265,8 @@ return {
       type: 'hls',
       headers: {
         'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
+          '(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
         Referer: 'https://gztv5.com/',
       },
     };
