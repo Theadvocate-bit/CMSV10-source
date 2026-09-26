@@ -68,6 +68,15 @@ async function apiGet(ctx, params, timeoutMs) {
   }
   urlStr += parts.join('&');
 
+  // 诊断：列出可用的 HTTP 客户端
+  if (ctx) {
+    const available = [];
+    if (typeof ctx.fetch === 'function') available.push('ctx.fetch');
+    if (typeof ctx.http === 'function') available.push('ctx.http');
+    if (typeof fetch === 'function') available.push('fetch');
+    ctx.log.info('[gztv] HTTP clients available:', available.join(', ') || 'none');
+  }
+
   const headers = {
     'User-Agent':
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 ' +
@@ -88,27 +97,34 @@ async function apiGet(ctx, params, timeoutMs) {
 
   try {
     let resp;
+    let clientName = 'unknown';
 
-    // 1) MoonTV 内置 HTTP 客户端（直接返回 JSON 对象）
-    if (ctx && typeof ctx.http === 'function') {
-      resp = await withTimeout(ctx.http(urlStr, { headers, timeout }), timeout);
-    }
-    // 2) ctx 级 fetch
-    else if (ctx && typeof ctx.fetch === 'function') {
+    // 1) ctx 级 fetch（MoonTV 通常提供）
+    if (ctx && typeof ctx.fetch === 'function') {
+      clientName = 'ctx.fetch';
+      ctx.log.info('[gztv] Using ctx.fetch:', urlStr);
       resp = await withTimeout(ctx.fetch(urlStr, { headers }), timeout);
     }
-    // 3) 全局 fetch（兜底）
+    // 2) 全局 fetch
     else if (typeof fetch === 'function') {
+      clientName = 'fetch';
+      ctx.log.info('[gztv] Using global fetch:', urlStr);
       resp = await withTimeout(fetch(urlStr, { headers }), timeout);
+    }
+    // 3) ctx.http（最后兜底，URL 校验较严格）
+    else if (ctx && typeof ctx.http === 'function') {
+      clientName = 'ctx.http';
+      ctx.log.info('[gztv] Using ctx.http:', urlStr);
+      resp = await withTimeout(ctx.http(urlStr, { headers, timeout }), timeout);
     } else {
-      ctx.log.warn('[gztv] No HTTP client available');
+      ctx.log.warn('[gztv] No HTTP client available (ctx.fetch / fetch / ctx.http)');
       return null;
     }
 
     // 处理 Response 对象（fetch 返回）
     if (resp && typeof resp.json === 'function') {
       if (!resp.ok) {
-        ctx.log.warn('[gztv] HTTP', resp.status, urlStr);
+        ctx.log.warn('[gztv] HTTP', resp.status, 'via', clientName);
         return null;
       }
       return await resp.json();
@@ -116,18 +132,24 @@ async function apiGet(ctx, params, timeoutMs) {
 
     // 处理已解析的对象（ctx.http 直接返回 JSON）
     if (resp && typeof resp === 'object' && 'code' in resp) {
+      ctx.log.info('[gztv] Got JSON via', clientName, '- items:', resp.list ? resp.list.length : 0);
       return resp;
     }
 
     // 尝试 JSON.parse（某些客户端返回字符串）
     if (typeof resp === 'string') {
-      try { return JSON.parse(resp); } catch (_) {}
+      try { 
+        const parsed = JSON.parse(resp);
+        ctx.log.info('[gztv] Parsed JSON string via', clientName);
+        return parsed;
+      } catch (_) {}
     }
 
-    ctx.log.warn('[gztv] Unexpected response:', typeof resp, String(resp).slice(0, 200));
+    ctx.log.warn('[gztv] Unexpected response via', clientName, ':', typeof resp, String(resp).slice(0, 200));
     return null;
   } catch (e) {
-    ctx.log.warn('[gztv] HTTP error:', e.message || String(e));
+    ctx.log.warn('[gztv] HTTP error via', clientName || 'unknown', ':', e.message || String(e));
+    ctx.log.warn('[gztv] URL was:', urlStr);
     return null;
   }
 }
