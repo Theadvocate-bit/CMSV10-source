@@ -97,41 +97,33 @@ async function apiGet(ctx, params, timeoutMs) {
 
   // 逐个客户端尝试，失败降级到下一个
   const clients = [];
-  if (ctx && typeof ctx.request === 'function') clients.push('ctx.request');
+  if (ctx && ctx.request && typeof ctx.request.getJson === 'function') clients.push('ctx.request.getJson');
+  if (ctx && ctx.request && typeof ctx.request.get === 'function') clients.push('ctx.request.get');
   if (ctx && typeof ctx.fetch === 'function') clients.push('ctx.fetch');
   if (typeof fetch === 'function') clients.push('fetch');
-  if (ctx && typeof ctx.http === 'function') clients.push('ctx.http');
 
   ctx.log.info('[gztv] HTTP clients available:', clients.join(', '));
-  ctx.log.info('[gztv] ctx keys:', Object.keys(ctx).join(', '));
-  ctx.log.info('[gztv] ctx.request type:', typeof ctx.request);
-  if (ctx.request && typeof ctx.request === 'object') {
-    ctx.log.info('[gztv] ctx.request keys:', Object.keys(ctx.request).join(', '));
-    for (const k of Object.keys(ctx.request)) {
-      ctx.log.info('[gztv]   ctx.request.' + k + ' =', typeof ctx.request[k]);
-    }
-  }
 
   for (let ci = 0; ci < clients.length; ci++) {
     const clientName = clients[ci];
     try {
       let resp;
 
-      if (clientName === 'ctx.request') {
-        ctx.log.info('[gztv] Trying ctx.request:', urlStr);
-        resp = await withTimeout(ctx.request(urlStr, { headers, timeout }), timeout);
+      if (clientName === 'ctx.request.getJson') {
+        ctx.log.info('[gztv] Trying ctx.request.getJson:', urlStr);
+        resp = await withTimeout(ctx.request.getJson(urlStr, { headers, timeout }), timeout);
+      } else if (clientName === 'ctx.request.get') {
+        ctx.log.info('[gztv] Trying ctx.request.get:', urlStr);
+        resp = await withTimeout(ctx.request.get(urlStr, { headers, timeout }), timeout);
       } else if (clientName === 'ctx.fetch') {
         ctx.log.info('[gztv] Trying ctx.fetch:', urlStr);
         resp = await withTimeout(ctx.fetch(urlStr, { headers }), timeout);
       } else if (clientName === 'fetch') {
         ctx.log.info('[gztv] Trying global fetch:', urlStr);
         resp = await withTimeout(fetch(urlStr, { headers }), timeout);
-      } else if (clientName === 'ctx.http') {
-        ctx.log.info('[gztv] Trying ctx.http:', urlStr);
-        resp = await withTimeout(ctx.http(urlStr, { headers, timeout }), timeout);
       }
 
-      // 处理 Response 对象（fetch/request 返回）
+      // 处理 Response 对象（fetch 返回）
       if (resp && typeof resp.json === 'function') {
         if (!resp.ok) {
           ctx.log.warn('[gztv] HTTP', resp.status, 'via', clientName);
@@ -142,7 +134,7 @@ async function apiGet(ctx, params, timeoutMs) {
         return data;
       }
 
-      // 处理已解析的对象（ctx.request/http 直接返回 JSON）
+      // 处理已解析的对象（ctx.request.getJson 直接返回 JSON）
       if (resp && typeof resp === 'object' && 'code' in resp) {
         ctx.log.info('[gztv] Got JSON via', clientName, '- items:', resp.list ? resp.list.length : 0);
         return resp;
