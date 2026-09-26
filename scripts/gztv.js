@@ -104,7 +104,13 @@ async function apiGet(ctx, params, timeoutMs) {
 
   ctx.log.info('[gztv] HTTP clients available:', clients.join(', '));
   ctx.log.info('[gztv] ctx keys:', Object.keys(ctx).join(', '));
-  ctx.log.info('[gztv] ctx.request type:', typeof ctx.request, '- value:', String(ctx.request).slice(0, 100));
+  ctx.log.info('[gztv] ctx.request type:', typeof ctx.request);
+  if (ctx.request && typeof ctx.request === 'object') {
+    ctx.log.info('[gztv] ctx.request keys:', Object.keys(ctx.request).join(', '));
+    for (const k of Object.keys(ctx.request)) {
+      ctx.log.info('[gztv]   ctx.request.' + k + ' =', typeof ctx.request[k]);
+    }
+  }
 
   for (let ci = 0; ci < clients.length; ci++) {
     const clientName = clients[ci];
