@@ -58,12 +58,15 @@ function mapListItem(item, sid) {
 // ── HTTP 请求 ─────────────────────────────────────────────────────
 
 async function apiGet(ctx, params, timeoutMs) {
-  const url = new URL(API_BASE);
-  for (const [k, v] of Object.entries(params)) {
-    url.searchParams.set(k, v);
-  }
-  const urlStr = url.toString();
   const timeout = timeoutMs || TIMEOUT_MS;
+
+  // 手动拼接 URL（new URL() 在脚本沙箱中不可用）
+  let urlStr = API_BASE + '?';
+  const parts = [];
+  for (const [k, v] of Object.entries(params)) {
+    parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(v));
+  }
+  urlStr += parts.join('&');
 
   const headers = {
     'User-Agent':
@@ -72,38 +75,37 @@ async function apiGet(ctx, params, timeoutMs) {
     Accept: 'application/json',
   };
 
+  // 超时控制（不依赖 AbortController）
+  function withTimeout(promise, ms) {
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('Timeout after ' + ms + 'ms')), ms);
+      promise.then(
+        (val) => { clearTimeout(timer); resolve(val); },
+        (err) => { clearTimeout(timer); reject(err); }
+      );
+    });
+  }
+
   try {
     let resp;
 
-    // 1) 优先用 ctx.http（MoonTV 内置 HTTP 客户端）
+    // 1) MoonTV 内置 HTTP 客户端（直接返回 JSON 对象）
     if (ctx && typeof ctx.http === 'function') {
-      resp = await ctx.http(urlStr, { headers, timeout });
+      resp = await withTimeout(ctx.http(urlStr, { headers, timeout }), timeout);
     }
-    // 2) 其次用 ctx.fetch
+    // 2) ctx 级 fetch
     else if (ctx && typeof ctx.fetch === 'function') {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeout);
-      try {
-        resp = await ctx.fetch(urlStr, { headers, signal: controller.signal });
-      } finally {
-        clearTimeout(timer);
-      }
+      resp = await withTimeout(ctx.fetch(urlStr, { headers }), timeout);
     }
-    // 3) 兜底用全局 fetch
+    // 3) 全局 fetch（兜底）
     else if (typeof fetch === 'function') {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeout);
-      try {
-        resp = await fetch(urlStr, { headers, signal: controller.signal });
-      } finally {
-        clearTimeout(timer);
-      }
+      resp = await withTimeout(fetch(urlStr, { headers }), timeout);
     } else {
-      ctx.log.warn('[gztv] No HTTP client available (ctx.http / ctx.fetch / fetch)');
+      ctx.log.warn('[gztv] No HTTP client available');
       return null;
     }
 
-    // 处理 Response 对象（fetch / ctx.fetch）
+    // 处理 Response 对象（fetch 返回）
     if (resp && typeof resp.json === 'function') {
       if (!resp.ok) {
         ctx.log.warn('[gztv] HTTP', resp.status, urlStr);
@@ -112,15 +114,20 @@ async function apiGet(ctx, params, timeoutMs) {
       return await resp.json();
     }
 
-    // 处理已解析的对象（ctx.http 可能直接返回 JSON）
+    // 处理已解析的对象（ctx.http 直接返回 JSON）
     if (resp && typeof resp === 'object' && 'code' in resp) {
       return resp;
     }
 
-    ctx.log.warn('[gztv] Unexpected response type:', typeof resp, urlStr);
+    // 尝试 JSON.parse（某些客户端返回字符串）
+    if (typeof resp === 'string') {
+      try { return JSON.parse(resp); } catch (_) {}
+    }
+
+    ctx.log.warn('[gztv] Unexpected response:', typeof resp, String(resp).slice(0, 200));
     return null;
   } catch (e) {
-    ctx.log.warn('[gztv] HTTP error:', e.message || String(e), urlStr);
+    ctx.log.warn('[gztv] HTTP error:', e.message || String(e));
     return null;
   }
 }
