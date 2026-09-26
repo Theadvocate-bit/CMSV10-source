@@ -97,6 +97,7 @@ async function apiGet(ctx, params, timeoutMs) {
 
   // 逐个客户端尝试，失败降级到下一个
   const clients = [];
+  if (ctx && typeof ctx.request === 'function') clients.push('ctx.request');
   if (ctx && typeof ctx.fetch === 'function') clients.push('ctx.fetch');
   if (typeof fetch === 'function') clients.push('fetch');
   if (ctx && typeof ctx.http === 'function') clients.push('ctx.http');
@@ -109,7 +110,10 @@ async function apiGet(ctx, params, timeoutMs) {
     try {
       let resp;
 
-      if (clientName === 'ctx.fetch') {
+      if (clientName === 'ctx.request') {
+        ctx.log.info('[gztv] Trying ctx.request:', urlStr);
+        resp = await withTimeout(ctx.request(urlStr, { headers, timeout }), timeout);
+      } else if (clientName === 'ctx.fetch') {
         ctx.log.info('[gztv] Trying ctx.fetch:', urlStr);
         resp = await withTimeout(ctx.fetch(urlStr, { headers }), timeout);
       } else if (clientName === 'fetch') {
@@ -120,18 +124,18 @@ async function apiGet(ctx, params, timeoutMs) {
         resp = await withTimeout(ctx.http(urlStr, { headers, timeout }), timeout);
       }
 
-      // 处理 Response 对象（fetch 返回）
+      // 处理 Response 对象（fetch/request 返回）
       if (resp && typeof resp.json === 'function') {
         if (!resp.ok) {
           ctx.log.warn('[gztv] HTTP', resp.status, 'via', clientName);
-          continue; // 降级到下一个客户端
+          continue;
         }
         const data = await resp.json();
         ctx.log.info('[gztv] Success via', clientName, '- items:', data.list ? data.list.length : 0);
         return data;
       }
 
-      // 处理已解析的对象（ctx.http 直接返回 JSON）
+      // 处理已解析的对象（ctx.request/http 直接返回 JSON）
       if (resp && typeof resp === 'object' && 'code' in resp) {
         ctx.log.info('[gztv] Got JSON via', clientName, '- items:', resp.list ? resp.list.length : 0);
         return resp;
@@ -149,7 +153,6 @@ async function apiGet(ctx, params, timeoutMs) {
       ctx.log.warn('[gztv] Unexpected response via', clientName, ':', typeof resp);
     } catch (e) {
       ctx.log.warn('[gztv] Failed via', clientName, ':', e.message || String(e));
-      // 降级到下一个客户端
     }
   }
 
