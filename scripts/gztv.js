@@ -95,63 +95,65 @@ async function apiGet(ctx, params, timeoutMs) {
     });
   }
 
-  let resp;
-  let clientName = 'unknown';
+  // 逐个客户端尝试，失败降级到下一个
+  const clients = [];
+  if (ctx && typeof ctx.fetch === 'function') clients.push('ctx.fetch');
+  if (typeof fetch === 'function') clients.push('fetch');
+  if (ctx && typeof ctx.http === 'function') clients.push('ctx.http');
 
-  try {
-    // 1) ctx 级 fetch（MoonTV 通常提供）
-    if (ctx && typeof ctx.fetch === 'function') {
-      clientName = 'ctx.fetch';
-      ctx.log.info('[gztv] Using ctx.fetch:', urlStr);
-      resp = await withTimeout(ctx.fetch(urlStr, { headers }), timeout);
-    }
-    // 2) 全局 fetch
-    else if (typeof fetch === 'function') {
-      clientName = 'fetch';
-      ctx.log.info('[gztv] Using global fetch:', urlStr);
-      resp = await withTimeout(fetch(urlStr, { headers }), timeout);
-    }
-    // 3) ctx.http（最后兜底，URL 校验较严格）
-    else if (ctx && typeof ctx.http === 'function') {
-      clientName = 'ctx.http';
-      ctx.log.info('[gztv] Using ctx.http:', urlStr);
-      resp = await withTimeout(ctx.http(urlStr, { headers, timeout }), timeout);
-    } else {
-      ctx.log.warn('[gztv] No HTTP client available (ctx.fetch / fetch / ctx.http)');
-      return null;
-    }
+  ctx.log.info('[gztv] HTTP clients available:', clients.join(', '));
 
-    // 处理 Response 对象（fetch 返回）
-    if (resp && typeof resp.json === 'function') {
-      if (!resp.ok) {
-        ctx.log.warn('[gztv] HTTP', resp.status, 'via', clientName);
-        return null;
+  for (let ci = 0; ci < clients.length; ci++) {
+    const clientName = clients[ci];
+    try {
+      let resp;
+
+      if (clientName === 'ctx.fetch') {
+        ctx.log.info('[gztv] Trying ctx.fetch:', urlStr);
+        resp = await withTimeout(ctx.fetch(urlStr, { headers }), timeout);
+      } else if (clientName === 'fetch') {
+        ctx.log.info('[gztv] Trying global fetch:', urlStr);
+        resp = await withTimeout(fetch(urlStr, { headers }), timeout);
+      } else if (clientName === 'ctx.http') {
+        ctx.log.info('[gztv] Trying ctx.http:', urlStr);
+        resp = await withTimeout(ctx.http(urlStr, { headers, timeout }), timeout);
       }
-      return await resp.json();
-    }
 
-    // 处理已解析的对象（ctx.http 直接返回 JSON）
-    if (resp && typeof resp === 'object' && 'code' in resp) {
-      ctx.log.info('[gztv] Got JSON via', clientName, '- items:', resp.list ? resp.list.length : 0);
-      return resp;
-    }
+      // 处理 Response 对象（fetch 返回）
+      if (resp && typeof resp.json === 'function') {
+        if (!resp.ok) {
+          ctx.log.warn('[gztv] HTTP', resp.status, 'via', clientName);
+          continue; // 降级到下一个客户端
+        }
+        const data = await resp.json();
+        ctx.log.info('[gztv] Success via', clientName, '- items:', data.list ? data.list.length : 0);
+        return data;
+      }
 
-    // 尝试 JSON.parse（某些客户端返回字符串）
-    if (typeof resp === 'string') {
-      try { 
-        const parsed = JSON.parse(resp);
-        ctx.log.info('[gztv] Parsed JSON string via', clientName);
-        return parsed;
-      } catch (_) {}
-    }
+      // 处理已解析的对象（ctx.http 直接返回 JSON）
+      if (resp && typeof resp === 'object' && 'code' in resp) {
+        ctx.log.info('[gztv] Got JSON via', clientName, '- items:', resp.list ? resp.list.length : 0);
+        return resp;
+      }
 
-    ctx.log.warn('[gztv] Unexpected response via', clientName, ':', typeof resp, String(resp).slice(0, 200));
-    return null;
-  } catch (e) {
-    ctx.log.warn('[gztv] HTTP error via', clientName, ':', e.message || String(e));
-    ctx.log.warn('[gztv] URL was:', urlStr);
-    return null;
+      // 尝试 JSON.parse（某些客户端返回字符串）
+      if (typeof resp === 'string') {
+        try {
+          const parsed = JSON.parse(resp);
+          ctx.log.info('[gztv] Parsed JSON via', clientName);
+          return parsed;
+        } catch (_) {}
+      }
+
+      ctx.log.warn('[gztv] Unexpected response via', clientName, ':', typeof resp);
+    } catch (e) {
+      ctx.log.warn('[gztv] Failed via', clientName, ':', e.message || String(e));
+      // 降级到下一个客户端
+    }
   }
+
+  ctx.log.warn('[gztv] All HTTP clients failed for:', urlStr);
+  return null;
 }
 
 // ── 脚本接口 ──────────────────────────────────────────────────────
